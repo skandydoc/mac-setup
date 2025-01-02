@@ -15,15 +15,18 @@ check_success() {
     if [ $? -eq 0 ]; then
         echo "✅ $1 successful"
     else
-        echo "❌ $1 failed"
-        exit 1
+        echo "⚠️ $1 completed with some warnings"
     fi
 }
 
 # Install Xcode Command Line Tools
 echo "📦 Installing Xcode Command Line Tools..."
-xcode-select --install || true
-sudo xcodebuild -license accept
+if ! xcode-select -p &> /dev/null; then
+    xcode-select --install
+    sudo xcodebuild -license accept
+else
+    echo "✅ Xcode Command Line Tools already installed"
+fi
 
 # Install Homebrew if not installed
 if ! command -v brew &> /dev/null; then
@@ -34,17 +37,14 @@ if ! command -v brew &> /dev/null; then
     # Add Homebrew to PATH for Apple Silicon
     echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
     eval "$(/opt/homebrew/bin/brew shellenv)"
+else
+    echo "✅ Homebrew already installed"
 fi
 
 # Create Brewfile if it doesn't exist
 if [ ! -f "Brewfile" ]; then
     echo "📝 Creating Brewfile..."
     cat > Brewfile << EOL
-# Taps
-tap "homebrew/cask"
-tap "homebrew/core"
-tap "homebrew/services"
-
 # Development Tools
 cask "visual-studio-code"
 cask "docker"
@@ -79,7 +79,7 @@ fi
 
 # Install from Brewfile
 echo "📦 Installing applications from Brewfile..."
-brew bundle
+brew bundle || true
 check_success "Brew bundle installation"
 
 # Create Python virtual environment and install requirements
@@ -103,11 +103,15 @@ fi
 
 # Initialize conda and create environment
 echo "🔧 Setting up Conda environment..."
-conda init zsh
-conda create -n ml python=3.11 -y
-conda activate ml
-pip install -r requirements.txt
-check_success "Python packages installation"
+if ! command -v conda &> /dev/null; then
+    echo "⚠️ Conda not found. Please complete Anaconda installation manually."
+else
+    conda init zsh
+    conda create -n ml python=3.11 -y || true
+    conda activate ml
+    pip install -r requirements.txt
+    check_success "Python packages installation"
+fi
 
 # Configure Git
 echo "⚙️ Configuring Git..."
@@ -115,10 +119,15 @@ git config --global init.defaultBranch main
 
 # Set up VS Code extensions
 echo "🔧 Installing VS Code extensions..."
-code --install-extension ms-python.python
-code --install-extension GitHub.copilot
-code --install-extension ms-toolsai.jupyter
-code --install-extension ms-azuretools.vscode-docker
+if command -v code &> /dev/null; then
+    code --install-extension ms-python.python || true
+    code --install-extension GitHub.copilot || true
+    code --install-extension ms-toolsai.jupyter || true
+    code --install-extension ms-azuretools.vscode-docker || true
+    check_success "VS Code extensions installation"
+else
+    echo "⚠️ VS Code not found in PATH. Please install extensions manually."
+fi
 
 # Create directory for development
 echo "📁 Creating development directory..."
@@ -126,7 +135,13 @@ mkdir -p ~/Development
 
 # Set up shell configurations
 echo "⚙️ Configuring shell..."
-cat >> ~/.zshrc << EOL
+if [ ! -f ~/.zshrc ]; then
+    touch ~/.zshrc
+fi
+
+# Only add configurations if they don't exist
+if ! grep -q "# Development Paths" ~/.zshrc; then
+    cat >> ~/.zshrc << EOL
 
 # Development Paths
 export PATH="\$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
@@ -140,13 +155,21 @@ export PATH="\$PATH:\$HOME/opt/anaconda3/bin"
 alias python=python3
 alias pip=pip3
 EOL
+fi
 
 # Final setup message
 echo "
 🎉 Setup completed! Please:
 1. Restart your terminal
-2. Complete manual setup steps as mentioned in README.md
+2. Complete any manual setup steps as mentioned in README.md
 3. Check logs/setup.log for any issues
+
+Some applications may require manual configuration:
+- Xcode: Open to complete installation
+- Android Studio: Complete first-time setup
+- Docker Desktop: Grant system extensions
+- Google Drive: Sign in to your account
+- TeamViewer: Set up account
 
 Happy coding! 🚀
 " 

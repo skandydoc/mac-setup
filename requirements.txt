@@ -4,9 +4,14 @@ scikit-learn
 tensorflow
 torch
 transformers
+datasets
+accelerate
+huggingface_hub
 jupyter
 matplotlib
 seaborn
 opencv-python
 pillow
 requests
+ipywidgets
+tqdm
